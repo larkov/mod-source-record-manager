@@ -44,6 +44,7 @@ public class DataImportJournalKafkaHandler implements AsyncRecordHandler<String,
     List<KafkaHeader> kafkaHeaders = record.headers();
     OkapiConnectionParams okapiConnectionParams = new OkapiConnectionParams(KafkaHeaderUtils.kafkaHeadersToMap(kafkaHeaders), vertx);
     Event event = new JsonObject(record.value()).mapTo(Event.class);
+    LOGGER.error("Event was received: {}", event.getEventType());
     LOGGER.debug("Event was received: {}", event.getEventType());
     try {
       DataImportEventPayload eventPayload = new ObjectMapper().readValue(ZIPArchiver.unzip(event.getEventPayload()), DataImportEventPayload.class);

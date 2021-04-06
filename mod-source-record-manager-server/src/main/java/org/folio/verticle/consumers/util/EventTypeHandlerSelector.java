@@ -1,5 +1,7 @@
 package org.folio.verticle.consumers.util;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.folio.DataImportEventPayload;
 import org.folio.DataImportEventTypes;
 
@@ -12,6 +14,8 @@ import static org.folio.DataImportEventTypes.DI_INVOICE_CREATED;
 
 public class EventTypeHandlerSelector {
 
+  private static final Logger LOGGER = LogManager.getLogger();
+
   public static final String DEFAULT_HANDLER_KEY = "DEFAULT";
   private final Map<String, SpecificEventHandler> handlers;
 
@@ -21,6 +25,7 @@ public class EventTypeHandlerSelector {
   }
 
   public SpecificEventHandler getHandler(DataImportEventPayload eventPayload) {
+    LOGGER.error(eventPayload);
     DataImportEventTypes eventType = DataImportEventTypes.valueOf(eventPayload.getEventType());
     if (DI_INVOICE_CREATED == eventType
       || (DI_ERROR == eventType && isLastOperationIs(DI_INVOICE_CREATED.value(), eventPayload.getEventsChain()))
