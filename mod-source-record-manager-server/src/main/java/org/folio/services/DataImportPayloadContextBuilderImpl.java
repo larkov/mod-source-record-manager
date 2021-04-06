@@ -2,6 +2,8 @@ package org.folio.services;
 
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.folio.dataimport.util.marc.MarcRecordAnalyzer;
 import org.folio.dataimport.util.marc.MarcRecordType;
 import org.folio.processing.mapping.defaultmapper.processor.parameters.MappingParameters;
@@ -24,6 +26,7 @@ import static org.folio.rest.jaxrs.model.EntityType.MARC_HOLDINGS;
 
 @Component
 class DataImportPayloadContextBuilderImpl implements DataImportPayloadContextBuilder {
+  private static final Logger LOGGER = LogManager.getLogger();
 
   private static final Map<MarcRecordType, EntityType> MARC_TO_ENTITY_TYPE;
 
@@ -76,6 +79,7 @@ class DataImportPayloadContextBuilderImpl implements DataImportPayloadContextBui
 
         EntityType entityType = MARC_TO_ENTITY_TYPE.get(type);
         if (entityType == null) {
+          LOGGER.error("Type = " + type);
           throw new IllegalStateException("Unsupported Marc record type");
         }
 
