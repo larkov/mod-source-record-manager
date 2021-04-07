@@ -48,7 +48,7 @@ public class DataImportJournalKafkaHandler implements AsyncRecordHandler<String,
     LOGGER.debug("Event was received: {}", event.getEventType());
     try {
       DataImportEventPayload eventPayload = new ObjectMapper().readValue(ZIPArchiver.unzip(event.getEventPayload()), DataImportEventPayload.class);
-      if (eventPayload.getEventType() == null) {
+      if (eventPayload.getEventType().equals("DI_INVENTORY_INSTANCE_UPDATED_READY_FOR_POST_PROCESSING")) {
         eventPayload.setEventType(event.getEventType());
       }
       eventTypeHandlerSelector.getHandler(eventPayload).handle(journalService, eventPayload, okapiConnectionParams.getTenantId());
