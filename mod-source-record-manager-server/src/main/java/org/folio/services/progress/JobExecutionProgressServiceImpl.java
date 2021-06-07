@@ -1,6 +1,10 @@
 package org.folio.services.progress;
 
 import io.vertx.core.Future;
+import io.vertx.core.Handler;
+import io.vertx.core.Promise;
+import io.vertx.core.Vertx;
+
 import org.folio.dao.JobExecutionProgressDao;
 import org.folio.rest.jaxrs.model.JobExecutionProgress;
 import org.folio.rest.jaxrs.model.JobMonitoring;
@@ -20,6 +24,8 @@ public class JobExecutionProgressServiceImpl implements JobExecutionProgressServ
   private JobExecutionProgressDao jobExecutionProgressDao;
   @Autowired
   private JobMonitoringService jobMonitoringService;
+  @Autowired
+  private Vertx vertx;
 
   @Override
   public Future<JobExecutionProgress> getByJobExecutionId(String jobExecutionId, String tenantId) {
@@ -42,14 +48,10 @@ public class JobExecutionProgressServiceImpl implements JobExecutionProgressServ
 
   @Override
   public Future<JobExecutionProgress> updateJobExecutionProgress(String jobExecutionId, UnaryOperator<JobExecutionProgress> progressMutator, String tenantId) {
-    return jobExecutionProgressDao.updateByJobExecutionId(jobExecutionId, progressMutator, tenantId)
-      .onComplete(event -> {
-        try {
-          Thread.currentThread().wait(30000);
-        } catch (InterruptedException e) {
-          e.printStackTrace();
-        }
-      })
+    Promise<Object> promise = Promise.promise();
+    vertx.setTimer(30000, event -> promise.complete());
+    return promise.future()
+      .compose(o -> jobExecutionProgressDao.updateByJobExecutionId(jobExecutionId, progressMutator, tenantId))
       .compose(jobExecutionProgress -> jobMonitoringService.updateByJobExecutionId(jobExecutionId, new Date(), false, tenantId)
         .map(jobExecutionProgress));
   }
