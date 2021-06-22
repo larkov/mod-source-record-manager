@@ -191,15 +191,23 @@
       <artifactId>folio-kafka-wrapper</artifactId>
       <version>2.3.1</version>
     </dependency>
+    <!-- TODO: THE VERSION OF LIBRARY MUST BE CHANGED BACK ONCE TESTING ON RANCHER IS COMPLETE-->
     <dependency>
       <groupId>org.folio</groupId>
       <artifactId>mod-data-import-converter-storage-client</artifactId>
-      <version>1.11.0</version>
+      <scope>system</scope>
+      <version>version_of_lib</version>
+      <!--      <version>1.11.0</version>-->
+      <systemPath>lib/</systemPath>
     </dependency>
+    <!-- TODO: THE VERSION OF LIBRARY MUST BE CHANGED BACK ONCE TESTING ON RANCHER IS COMPLETE-->
     <dependency>
       <groupId>org.folio</groupId>
       <artifactId>data-import-processing-core</artifactId>
-      <version>3.1.1</version>
+      <scope>system</scope>
+      <version>version_of_lib</version>
+<!--      <version>3.1.1</version>-->
+      <systemPath>lib/</systemPath>
     </dependency>
   </dependencies>
   <build>
@@ -451,6 +459,7 @@
                     <Main-Class>org.folio.rest.RestLauncher</Main-Class>
                     <Main-Verticle>org.folio.rest.RestVerticle</Main-Verticle>
                     <Multi-Release>true</Multi-Release>
+                    <Class-Path>lib/data-import-processing-core-fat.jar lib/mod-data-import-converter-storage-client-1.11.0-SNAPSHOT.jar</Class-Path>
                   </manifestEntries>
                 </transformer>
               </transformers>
