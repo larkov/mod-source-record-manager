@@ -11,7 +11,7 @@ COPY mod-source-record-manager-server/target/${VERTICLE_FILE} ${VERTICLE_HOME}/$
 # Copy local lib to the container
 ENV LIB_DIR ${VERTICLE_HOME}/lib
 RUN mkdir -p ${LIB_DIR}
-COPY mod-source-record-storage-server/lib/* ${LIB_DIR}/
+COPY mod-source-record-manager-server/lib/* ${LIB_DIR}/
 
 # Expose this port locally in the container.
 EXPOSE 8081
