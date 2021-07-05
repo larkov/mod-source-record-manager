@@ -1,6 +1,7 @@
 package org.folio.verticle;
 
 import org.folio.kafka.AsyncRecordHandler;
+import org.folio.verticle.consumers.util.MarcImportEventsHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 
@@ -38,6 +39,7 @@ public class DataImportJournalConsumersVerticle extends AbstractConsumersVerticl
       DI_INVENTORY_INSTANCE_CREATED.value(),
       DI_INVENTORY_INSTANCE_UPDATED.value(),
       DI_SRS_MARC_BIB_RECORD_MODIFIED_READY_FOR_POST_PROCESSING.value(),
+      MarcImportEventsHandler.MARC_BIB_CREATED_LOG_EVENT,
       DI_INVENTORY_INSTANCE_NOT_MATCHED.value(),
       DI_INVENTORY_HOLDING_CREATED.value(),
       DI_INVENTORY_HOLDING_UPDATED.value(),
