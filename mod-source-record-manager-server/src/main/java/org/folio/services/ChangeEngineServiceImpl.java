@@ -1,18 +1,11 @@
 package org.folio.services;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
-
-import javax.ws.rs.NotFoundException;
-
+import io.vertx.core.Future;
+import io.vertx.core.Promise;
+import io.vertx.core.json.Json;
+import io.vertx.core.json.JsonObject;
+import io.vertx.kafka.client.producer.KafkaHeader;
+import io.vertx.kafka.client.producer.impl.KafkaHeaderImpl;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.mutable.MutableInt;
@@ -20,6 +13,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.folio.dao.JobExecutionSourceChunkDao;
 import org.folio.dataimport.util.OkapiConnectionParams;
+import org.folio.dataimport.util.marc.MarcRecordAnalyzer;
+import org.folio.dataimport.util.marc.MarcRecordType;
+import org.folio.dataimport.util.marc.RecordAnalyzer;
 import org.folio.kafka.KafkaConfig;
 import org.folio.kafka.KafkaHeaderUtils;
 import org.folio.rest.jaxrs.model.ActionProfile;
@@ -30,13 +26,13 @@ import org.folio.rest.jaxrs.model.ExternalIdsHolder;
 import org.folio.rest.jaxrs.model.InitialRecord;
 import org.folio.rest.jaxrs.model.JobExecution;
 import org.folio.rest.jaxrs.model.JobExecutionSourceChunk;
-import org.folio.rest.jaxrs.model.JobProfileInfo;
-import org.folio.rest.jaxrs.model.JournalRecord;
+import org.folio.rest.jaxrs.model.JobProfileInfo.DataType;
 import org.folio.rest.jaxrs.model.ParsedRecord;
 import org.folio.rest.jaxrs.model.ProfileSnapshotWrapper;
 import org.folio.rest.jaxrs.model.RawRecord;
 import org.folio.rest.jaxrs.model.RawRecordsDto;
 import org.folio.rest.jaxrs.model.Record;
+import org.folio.rest.jaxrs.model.Record.RecordType;
 import org.folio.rest.jaxrs.model.RecordCollection;
 import org.folio.rest.jaxrs.model.RecordsMetadata;
 import org.folio.rest.jaxrs.model.StatusDto;
@@ -45,27 +41,27 @@ import org.folio.services.journal.JournalService;
 import org.folio.services.parsers.ParsedResult;
 import org.folio.services.parsers.RecordParser;
 import org.folio.services.parsers.RecordParserBuilder;
-import org.folio.services.util.ParsedRecordUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import io.vertx.core.Future;
-import io.vertx.core.Promise;
-import io.vertx.core.json.Json;
-import io.vertx.core.json.JsonArray;
-import io.vertx.core.json.JsonObject;
-import io.vertx.kafka.client.producer.KafkaHeader;
-import io.vertx.kafka.client.producer.impl.KafkaHeaderImpl;
+import javax.ws.rs.NotFoundException;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static org.apache.commons.lang.StringUtils.isNotBlank;
-import static org.apache.commons.lang3.ObjectUtils.allNotNull;
 import static org.folio.rest.RestVerticle.MODULE_SPECIFIC_ARGS;
 import static org.folio.rest.jaxrs.model.DataImportEventTypes.DI_MARC_BIB_FOR_UPDATE_RECEIVED;
 import static org.folio.rest.jaxrs.model.DataImportEventTypes.DI_RAW_RECORDS_CHUNK_PARSED;
-import static org.folio.rest.jaxrs.model.JournalRecord.ActionType.CREATE;
+import static org.folio.rest.jaxrs.model.Record.RecordType.MARC_AUTHORITY;
+import static org.folio.rest.jaxrs.model.Record.RecordType.MARC_BIB;
+import static org.folio.rest.jaxrs.model.Record.RecordType.MARC_HOLDING;
 import static org.folio.services.afterprocessing.AdditionalFieldsUtil.TAG_999;
 import static org.folio.services.afterprocessing.AdditionalFieldsUtil.addFieldToMarcRecord;
 import static org.folio.services.afterprocessing.AdditionalFieldsUtil.getValue;
@@ -77,12 +73,13 @@ public class ChangeEngineServiceImpl implements ChangeEngineService {
   private static final Logger LOGGER = LogManager.getLogger();
   private static final int THRESHOLD_CHUNK_SIZE =
     Integer.parseInt(MODULE_SPECIFIC_ARGS.getOrDefault("chunk.processing.threshold.chunk.size", "100"));
-  private static final String INSTANCE_TITLE_FIELD_PATH = "title";
   private static final String TAG_001 = "001";
+  private static final String MARC_FORMAT = "MARC_";
   private static final AtomicInteger indexer = new AtomicInteger();
 
   private JobExecutionSourceChunkDao jobExecutionSourceChunkDao;
   private JobExecutionService jobExecutionService;
+  private RecordAnalyzer marcRecordAnalyzer;
   private JournalService journalService;
   private HrIdFieldService hrIdFieldService;
   private RecordsPublishingService recordsPublishingService;
@@ -94,6 +91,7 @@ public class ChangeEngineServiceImpl implements ChangeEngineService {
 
   public ChangeEngineServiceImpl(@Autowired JobExecutionSourceChunkDao jobExecutionSourceChunkDao,
                                  @Autowired JobExecutionService jobExecutionService,
+                                 @Autowired MarcRecordAnalyzer marcRecordAnalyzer,
                                  @Autowired HrIdFieldService hrIdFieldService,
                                  @Autowired MappingRuleCache mappingRuleCache,
                                  @Autowired @Qualifier("journalServiceProxy") JournalService journalService,
@@ -101,6 +99,7 @@ public class ChangeEngineServiceImpl implements ChangeEngineService {
                                  @Autowired KafkaConfig kafkaConfig) {
     this.jobExecutionSourceChunkDao = jobExecutionSourceChunkDao;
     this.jobExecutionService = jobExecutionService;
+    this.marcRecordAnalyzer = marcRecordAnalyzer;
     this.hrIdFieldService = hrIdFieldService;
     this.mappingRuleCache = mappingRuleCache;
     this.journalService = journalService;
@@ -118,12 +117,8 @@ public class ChangeEngineServiceImpl implements ChangeEngineService {
     if (updateMarcActionExists) {
       LOGGER.info("Records have not been saved in record-storage, because jobProfileSnapshotWrapper contains action for Marc-Bibliographic update");
       recordsPublishingService.sendEventsWithRecords(parsedRecords, jobExecution.getId(), params, DI_MARC_BIB_FOR_UPDATE_RECEIVED.value())
-        .compose(ar -> buildJournalRecordsForProcessedRecords(parsedRecords, parsedRecords, CREATE, params.getTenantId())
-          .compose(journalRecords -> {
-            journalService.saveBatch(new JsonArray(journalRecords), params.getTenantId());
-            promise.complete(parsedRecords);
-            return Future.succeededFuture();
-          }));
+        .onSuccess(ar -> promise.complete(parsedRecords))
+        .onFailure(promise::fail);
     } else {
       saveRecords(params, jobExecution, parsedRecords)
         .onComplete(postAr -> {
@@ -194,7 +189,7 @@ public class ChangeEngineServiceImpl implements ChangeEngineService {
         Record record = new Record()
           .withId(recordId)
           .withMatchedId(recordId)
-          .withRecordType(Record.RecordType.valueOf(jobExecution.getJobProfileInfo().getDataType().value()))
+          .withRecordType(inferRecordType(jobExecution, parsedResult, recordId))
           .withSnapshotId(jobExecution.getId())
           .withOrder(rawRecord.getOrder())
           .withGeneration(0)
@@ -206,7 +201,7 @@ public class ChangeEngineServiceImpl implements ChangeEngineService {
             .withDescription(parsedResult.getErrors().encode()));
         } else {
           record.setParsedRecord(new ParsedRecord().withId(recordId).withContent(parsedResult.getParsedRecord().encode()));
-          if (jobExecution.getJobProfileInfo().getDataType().equals(JobProfileInfo.DataType.MARC)) {
+          if (jobExecution.getJobProfileInfo().getDataType().equals(DataType.MARC)) {
             String matchedId = getValue(record, "999", 's');
             if (StringUtils.isNotBlank(matchedId)) {
               record.setMatchedId(matchedId);
@@ -236,6 +231,16 @@ public class ChangeEngineServiceImpl implements ChangeEngineService {
       }).collect(Collectors.toList());
   }
 
+  private RecordType inferRecordType(JobExecution jobExecution, ParsedResult recordParsedResult, String recordId) {
+    if (DataType.MARC.equals(jobExecution.getJobProfileInfo().getDataType())) {
+      MarcRecordType marcRecordType = marcRecordAnalyzer.process(recordParsedResult.getParsedRecord());
+      LOGGER.info("Marc record analyzer parsed record with id = {} and type = {}", recordId, marcRecordType);
+      return RecordType.valueOf(MARC_FORMAT + marcRecordType.name());
+    }
+
+    return RecordType.valueOf(jobExecution.getJobProfileInfo().getDataType().value());
+  }
+
   /**
    * Adds new additional fields into parsed records content to incoming records
    *
@@ -244,7 +249,7 @@ public class ChangeEngineServiceImpl implements ChangeEngineService {
   private void fillParsedRecordsWithAdditionalFields(List<Record> records) {
     if (!CollectionUtils.isEmpty(records)) {
       Record.RecordType recordType = records.get(0).getRecordType();
-      if (Record.RecordType.MARC.equals(recordType)) {
+      if (MARC_BIB.equals(recordType) || MARC_AUTHORITY.equals(recordType) || MARC_HOLDING.equals(recordType)) {
         hrIdFieldService.move001valueTo035Field(records);
         for (Record record : records) {
           addFieldToMarcRecord(record, TAG_999, 's', record.getMatchedId());
@@ -278,91 +283,5 @@ public class ChangeEngineServiceImpl implements ChangeEngineService {
     return sendEventToKafka(params.getTenantId(), Json.encode(recordCollection), DI_RAW_RECORDS_CHUNK_PARSED.value(),
       kafkaHeaders, kafkaConfig, key)
       .map(parsedRecords);
-  }
-
-  /**
-   * Builds list of journal records which contain info about records processing result
-   *
-   * @param records          records that should be created
-   * @param processedRecords created records
-   * @param actionType       action type which was performed on instances during processing
-   * @return future with list of journal records represented as json objects
-   */
-  private Future<List<JsonObject>> buildJournalRecordsForProcessedRecords(List<Record> records, List<Record> processedRecords,
-                                                                          JournalRecord.ActionType actionType, String tenantId) {
-    return mappingRuleCache.get(tenantId)
-      .map(rulesOptional -> buildJournalRecordsForProcessedRecords(records, processedRecords, actionType, rulesOptional))
-      .otherwise(th -> buildJournalRecordsForProcessedRecords(records, processedRecords, actionType, Optional.empty()));
-  }
-
-  /**
-   * Builds list of journal records represented as json objects,
-   * which contain info about records processing result
-   *
-   * @param records          records that should be created
-   * @param processedRecords created records
-   * @param actionType       action type which was performed on instances during processing
-   * @return list of journal records represented as json objects
-   */
-  private List<JsonObject> buildJournalRecordsForProcessedRecords(List<Record> records, List<Record> processedRecords,
-                                                                  JournalRecord.ActionType actionType, Optional<JsonObject> mappingRulesOptional) {
-    String titleFieldTag = null;
-    List<String> subfieldCodes = null;
-    if (mappingRulesOptional.isPresent()) {
-      JsonObject mappingRules = mappingRulesOptional.get();
-      Optional<String> titleFieldOptional = getTitleFieldTagByInstanceFieldPath(mappingRules);
-
-      if (titleFieldOptional.isPresent()) {
-        titleFieldTag = titleFieldOptional.get();
-        subfieldCodes = mappingRules.getJsonArray(titleFieldTag).stream()
-          .map(JsonObject.class::cast)
-          .filter(fieldMappingRule -> fieldMappingRule.getString("target").equals(INSTANCE_TITLE_FIELD_PATH))
-          .flatMap(fieldMappingRule -> fieldMappingRule.getJsonArray("subfield").stream())
-          .map(subfieldCode -> subfieldCode.toString())
-          .collect(Collectors.toList());
-      }
-    }
-
-    Set<String> createdRecordIds = processedRecords.stream()
-      .map(Record::getId)
-      .collect(Collectors.toSet());
-
-    List<JsonObject> journalRecords = new ArrayList<>();
-    for (Record record : records) {
-      JournalRecord journalRecord = new JournalRecord()
-        .withJobExecutionId(record.getSnapshotId())
-        .withSourceRecordOrder(record.getOrder())
-        .withSourceId(record.getId())
-        .withEntityType(inferJournalRecordEntityType(record))
-        .withEntityId(record.getId())
-        .withActionType(actionType)
-        .withActionDate(new Date())
-        .withTitle(allNotNull(record.getParsedRecord(), titleFieldTag)
-          ? ParsedRecordUtil.retrieveDataByField(record.getParsedRecord(), titleFieldTag, subfieldCodes) : null)
-        .withActionStatus(record.getErrorRecord() == null && createdRecordIds.contains(record.getId())
-          ? JournalRecord.ActionStatus.COMPLETED
-          : JournalRecord.ActionStatus.ERROR);
-
-      journalRecords.add(JsonObject.mapFrom(journalRecord));
-    }
-    return journalRecords;
-  }
-
-  private JournalRecord.EntityType inferJournalRecordEntityType(Record record) {
-    switch (record.getRecordType()) {
-      case EDIFACT:
-        return JournalRecord.EntityType.EDIFACT;
-      case MARC:
-      default:
-        return JournalRecord.EntityType.MARC_BIBLIOGRAPHIC;
-    }
-  }
-
-  private Optional<String> getTitleFieldTagByInstanceFieldPath(JsonObject mappingRules) {
-    return mappingRules.getMap().keySet().stream()
-      .filter(fieldTag -> mappingRules.getJsonArray(fieldTag).stream()
-        .map(o -> (JsonObject) o)
-        .anyMatch(fieldMappingRule -> INSTANCE_TITLE_FIELD_PATH.equals(fieldMappingRule.getString("target"))))
-      .findFirst();
   }
 }

@@ -15,10 +15,12 @@ import org.folio.TestUtil;
 import org.folio.dao.JobExecutionDaoImpl;
 import org.folio.dao.JobExecutionProgressDaoImpl;
 import org.folio.dao.JobExecutionSourceChunkDaoImpl;
+import org.folio.dao.JobMonitoringDao;
 import org.folio.dao.JournalRecordDaoImpl;
 import org.folio.dao.MappingRuleDaoImpl;
 import org.folio.dao.util.PostgresClientFactory;
 import org.folio.dataimport.util.OkapiConnectionParams;
+import org.folio.dataimport.util.marc.MarcRecordAnalyzer;
 import org.folio.kafka.KafkaConfig;
 import org.folio.processing.events.utils.ZIPArchiver;
 import org.folio.processing.mapping.defaultmapper.processor.parameters.MappingParameters;
@@ -31,6 +33,7 @@ import org.folio.rest.jaxrs.model.InitialRecord;
 import org.folio.rest.jaxrs.model.JobExecution;
 import org.folio.rest.jaxrs.model.JobExecutionProgress;
 import org.folio.rest.jaxrs.model.JobProfileInfo;
+import org.folio.rest.jaxrs.model.JobProfileInfo.DataType;
 import org.folio.rest.jaxrs.model.JournalRecord;
 import org.folio.rest.jaxrs.model.RawRecordsDto;
 import org.folio.rest.jaxrs.model.Record;
@@ -109,6 +112,8 @@ public class RecordProcessedEventHandlingServiceImplTest extends AbstractRestTes
   @InjectMocks
   @Spy
   private JobExecutionServiceImpl jobExecutionService;
+  @Spy
+  private MarcRecordAnalyzer marcRecordAnalyzer;
   @InjectMocks
   @Spy
   private JobExecutionProgressDaoImpl jobExecutionProgressDao;
@@ -123,12 +128,17 @@ public class RecordProcessedEventHandlingServiceImplTest extends AbstractRestTes
   @Mock
   private JournalService mockedJournalService;
   @Spy
+  @InjectMocks
+  private JobMonitoringDao jobMonitoringDao;
+
+  @Spy
   RecordsPublishingService recordsPublishingService;
 
   private MappingRuleCache mappingRuleCache;
   private ChangeEngineService changeEngineService;
   private ChunkProcessingService chunkProcessingService;
   private JournalServiceImpl journalService;
+  private JobMonitoringService jobMonitoringService;
   private RecordProcessedEventHandlingServiceImpl recordProcessedEventHandlingService;
   private OkapiConnectionParams params;
 
@@ -148,20 +158,23 @@ public class RecordProcessedEventHandlingServiceImplTest extends AbstractRestTes
   private JobProfileInfo jobProfileInfo = new JobProfileInfo()
     .withName("MARC records")
     .withId(jobProfile.getId())
-    .withDataType(JobProfileInfo.DataType.MARC);
+    .withDataType(DataType.MARC);
 
   @Before
   public void setUp() throws IOException {
     String rules = TestUtil.readFileFromPath(RULES_PATH);
     MockitoAnnotations.initMocks(this);
     mappingRuleCache = new MappingRuleCache(mappingRuleDao, vertx);
-    changeEngineService = new ChangeEngineServiceImpl(jobExecutionSourceChunkDao, jobExecutionService, hrIdFieldService, mappingRuleCache, mockedJournalService, recordsPublishingService, kafkaConfig);
+    marcRecordAnalyzer = new MarcRecordAnalyzer();
+    changeEngineService = new ChangeEngineServiceImpl(jobExecutionSourceChunkDao, jobExecutionService, marcRecordAnalyzer, hrIdFieldService, mappingRuleCache, mockedJournalService, recordsPublishingService, kafkaConfig);
     mappingRuleService = new MappingRuleServiceImpl(mappingRuleDao, mappingRuleCache);
     mappingRuleDao = when(mock(MappingRuleDaoImpl.class).get(anyString())).thenReturn(Future.succeededFuture(Optional.of(new JsonObject(rules)))).getMock();
     mappingParametersProvider = when(mock(MappingParametersProvider.class).get(anyString(), any(OkapiConnectionParams.class))).thenReturn(Future.succeededFuture(new MappingParameters())).getMock();
     chunkProcessingService = new EventDrivenChunkProcessingServiceImpl(jobExecutionSourceChunkDao, jobExecutionService, changeEngineService, jobExecutionProgressService);
     journalService = new JournalServiceImpl(journalRecordDao);
-    recordProcessedEventHandlingService = new RecordProcessedEventHandlingServiceImpl(jobExecutionProgressService, jobExecutionService, journalService);
+    jobMonitoringService = new JobMonitoringServiceImpl();
+
+    recordProcessedEventHandlingService = new RecordProcessedEventHandlingServiceImpl(jobExecutionProgressService, jobExecutionService, journalService, jobMonitoringService);
     HashMap<String, String> headers = new HashMap<>();
     headers.put(OKAPI_URL_HEADER, "http://localhost:" + snapshotMockServer.port());
     headers.put(OKAPI_TENANT_HEADER, TENANT_ID);
@@ -199,6 +212,10 @@ public class RecordProcessedEventHandlingServiceImplTest extends AbstractRestTes
       context.assertEquals(1, updatedProgress.getCurrentlySucceeded());
       context.assertEquals(0, updatedProgress.getCurrentlyFailed());
       context.assertEquals(rawRecordsDto.getRecordsMetadata().getTotal(), updatedProgress.getTotal());
+      jobMonitoringService.getByJobExecutionId(updatedProgress.getJobExecutionId(), params.getTenantId()).onSuccess(optionalJobMonitoring -> {
+        context.assertTrue(optionalJobMonitoring.isEmpty());
+        async.complete();
+      });
       async.complete();
     });
   }

@@ -30,6 +30,7 @@ import org.folio.rest.jaxrs.model.InitialRecord;
 import org.folio.rest.jaxrs.model.JobExecution;
 import org.folio.rest.jaxrs.model.JobProfile;
 import org.folio.rest.jaxrs.model.JobProfileInfo;
+import org.folio.rest.jaxrs.model.JobProfileInfo.DataType;
 import org.folio.rest.jaxrs.model.ProfileSnapshotWrapper;
 import org.folio.rest.jaxrs.model.Progress;
 import org.folio.rest.jaxrs.model.RawRecordsDto;
@@ -1581,7 +1582,22 @@ public class ChangeManagerAPITest extends AbstractRestTest {
   }
 
   @Test
-  public void shouldFillInRecordOrderIfAtLeastOneRecordHasNoOrder() throws InterruptedException, IOException {
+  public void shouldFillInRecordOrderIfAtLeastOneMarcBibRecordHasNoOrder() throws InterruptedException, IOException {
+    fillInRecordOrderIfAtLeastOneRecordHasNoOrder(DataType.MARC);
+  }
+
+  @Test
+  public void shouldFillInRecordOrderIfAtLeastOneMarcAuthorityRecordHasNoOrder() throws InterruptedException, IOException {
+    fillInRecordOrderIfAtLeastOneRecordHasNoOrder(DataType.MARC);
+  }
+
+  @Test
+  public void shouldFillInRecordOrderIfAtLeastOneMarcAuthorityMarcHoldingRecordHasNoOrder() throws InterruptedException, IOException {
+    fillInRecordOrderIfAtLeastOneRecordHasNoOrder(DataType.MARC);
+  }
+
+  private void fillInRecordOrderIfAtLeastOneRecordHasNoOrder(DataType dataType)
+    throws InterruptedException, IOException {
     RawRecordsDto rawRecordsDto = new RawRecordsDto()
       .withId(UUID.randomUUID().toString())
       .withRecordsMetadata(new RecordsMetadata()
@@ -1603,7 +1619,7 @@ public class ChangeManagerAPITest extends AbstractRestTest {
       .body(new JobProfileInfo()
         .withName("MARC records")
         .withId(DEFAULT_JOB_PROFILE_ID)
-        .withDataType(JobProfileInfo.DataType.MARC))
+        .withDataType(dataType))
       .when()
       .put(JOB_EXECUTION_PATH + jobExec.getId() + JOB_PROFILE_PATH)
       .then()
@@ -1625,7 +1641,8 @@ public class ChangeManagerAPITest extends AbstractRestTest {
     Event obtainedEvent = Json.decodeValue(observedValues.get(0), Event.class);
     assertEquals(DI_RAW_RECORDS_CHUNK_PARSED.value(), obtainedEvent.getEventType());
 
-    RecordCollection processedRecords = Json.decodeValue(ZIPArchiver.unzip(obtainedEvent.getEventPayload()), RecordCollection.class);
+    RecordCollection processedRecords = Json
+      .decodeValue(ZIPArchiver.unzip(obtainedEvent.getEventPayload()), RecordCollection.class);
     assertEquals(3, processedRecords.getRecords().size());
 
     assertEquals(4, processedRecords.getRecords().get(0).getOrder().intValue());
@@ -1919,7 +1936,7 @@ public class ChangeManagerAPITest extends AbstractRestTest {
       .body(new JobProfileInfo()
         .withName("MARC records")
         .withId(DEFAULT_JOB_PROFILE_ID)
-        .withDataType(JobProfileInfo.DataType.MARC))
+        .withDataType(DataType.MARC))
       .when()
       .put(JOB_EXECUTION_PATH + jobExec.getId() + JOB_PROFILE_PATH)
       .then()

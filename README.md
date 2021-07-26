@@ -111,6 +111,7 @@ After setup, it is good to check logs in all related modules for errors. Data im
   * "_srm.kafka.CreatedRecordsKafkaHandler.maxDistributionNum_": 100
   * "_srm.kafka.DataImportConsumer.loadLimit_": 5
 * Relevant for the **Juniper** release, module versions from 3.1.0:
+  * "_srm.kafka.JobMonitoringWatchdogVerticle.instancesNumber_": 1
   * "_srm.kafka.QuickMarcUpdateConsumersVerticle.instancesNumber_": 5
   * "_srm.kafka.QuickMarcUpdateKafkaHandler.maxDistributionNum_": 100
 
@@ -203,9 +204,9 @@ curl -w '\n' -X POST -D -   \
       "parentJobId": "647c2dee-70a8-4ae8-aba4-81579ee17e58",
       "subordinationType": "PARENT_SINGLE",
       "jobProfileInfo": {
-        "id": "6409dcff-71fa-433a-bc6a-e70ad38a9604",
+        "id": "e34d7b92-9b83-11eb-a8b3-0242ac130003",
         "name": "Default - Create instance and SRS MARC Bib",
-        "dataType": "MARC"
+        "dataType": "MARC_BIB"
       },
       "runBy": {
         "firstName": "DIKU",
@@ -241,9 +242,9 @@ curl -w '\n' -X POST -D -   \
 
 ```
 {
-  "id": "6409dcff-71fa-433a-bc6a-e70ad38a9604",
+  "id": "e34d7b92-9b83-11eb-a8b3-0242ac130003",
   "name": "Default - Create instance and SRS MARC Bib",
-  "dataType": "MARC"
+  "dataType": "MARC_BIB"
 }
 ```
 
@@ -342,9 +343,9 @@ JobExecution state will be updated
   "parentJobId": "647c2dee-70a8-4ae8-aba4-81579ee17e58",
   "subordinationType": "PARENT_SINGLE",
   "jobProfileInfo": {
-    "id": "6409dcff-71fa-433a-bc6a-e70ad38a9604",
+    "id": "e34d7b92-9b83-11eb-a8b3-0242ac130003",
     "name": "Default - Create instance and SRS MARC Bib",
-    "dataType": "MARC"
+    "dataType": "MARC_BIB"
   },
   "runBy" : {
     "firstName" : "DIKU",
@@ -403,9 +404,9 @@ JobExecution state will be changed
   "parentJobId": "647c2dee-70a8-4ae8-aba4-81579ee17e58",
   "subordinationType": "PARENT_SINGLE",
   "jobProfileInfo": {
-    "id": "6409dcff-71fa-433a-bc6a-e70ad38a9604",
+    "id": "e34d7b92-9b83-11eb-a8b3-0242ac130003",
     "name": "Default - Create instance and SRS MARC Bib",
-    "dataType": "MARC"
+    "dataType": "MARC_BIB"
   }, 
   "runBy" : {
     "firstName" : "DIKU",

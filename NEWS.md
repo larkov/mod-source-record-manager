@@ -1,12 +1,40 @@
-## XXXX-XX-XX v3.1.0-SNAPSHOT
+## 2021-07-06 v3.2.0-SNAPSHOT
+* [MODSOURMAN-509](https://issues.folio.org/browse/MODSOURMAN-509) Data import stopped process before finishing: deadlock for "job_monitoring"
+* [MODSOURMAN-517](https://issues.folio.org/browse/MODSOURMAN-517) Change quickMarc producers not to close after message sent
+
+## xxxx-xx-xx v3.1.2-SNAPSHOT
+* [MODSOURMAN-508](https://issues.folio.org/browse/MODSOURMAN-508) Log details for Inventory single record imports for Overlays
+* [MODSOURMAN-527](https://issues.folio.org/browse/MODSOURMAN-527) Cannot import EDIFACT invoices
+
+## 2021-06-25 v3.1.1
+* [MODSOURMAN-497](https://issues.folio.org/browse/MODSOURMAN-497) Apply MarcRecordAnalyzer to determine MARC related specific type
+* [MODSOURMAN-501](https://issues.folio.org/browse/MODSOURMAN-501) Change dataType to have have common type for MARC related subtypes
+
+## 2021-06-17 v3.1.0
 * [MODSOURMAN-411](https://issues.folio.org/browse/MODSOURMAN-411) Dynamically define the payload of DI event depending on MARC record type (Bib, Authority, Holding)
 * [MODSOURMAN-448](https://issues.folio.org/browse/MODSOURMAN-448) Update default field mapping for 647 field
 * [MODSOURMAN-453](https://issues.folio.org/browse/MODSOURMAN-453) Add index for the "job_execution_source_chunks"
-* [MODSOURCE-278](https://issues.folio.org/browse/MODSOURCE-278) Move logging of the records creation information to the handler receiving saved records
+* [MODSOURMAN-461](https://issues.folio.org/browse/MODSOURMAN-461) Data Import fails (no details about cause of failure in ui/log)
 * [MODSOURMAN-471](https://issues.folio.org/browse/MODSOURMAN-471) Migrate QM-flow to Kafka
 * [MODSOURMAN-480](https://issues.folio.org/browse/MODSOURMAN-471) Create jobs with match profiles that include records with 999 fields cause errors in the srs-instance relationship
+* [MODSOURMAN-477](https://issues.folio.org/browse/MODSOURMAN-477) Store MARC Authority record
+* [MODSOURMAN-458](https://issues.folio.org/browse/MODSOURMAN-458) Support monitoring table creation and data insertion
+* [MODSOURMAN-460](https://issues.folio.org/browse/MODSOURMAN-460) Implement watchdog timer to monitor table
+* [MODSOURMAN-485](https://issues.folio.org/browse/MODSOURMAN-485) Update interface version
 
-## 2021-05-xx v3.0.6-SNAPSHOT
+## 2021-06-18 v3.0.8
+* [MODSOURCE-301](https://issues.folio.org/browse/MODSOURCE-301) Cannot import GOBI EDIFACT invoice
+* [MODSOURMAN-454](https://issues.folio.org/browse/MODSOURMAN-454) Excessive CPU usage in a system with no user activity
+* [MODSOURMAN-456](https://issues.folio.org/browse/MODSOURMAN-456) Ignore event that is not supposed to be saved to data import journal
+* [MODSOURMAN-458](https://issues.folio.org/browse/MODSOURMAN-458) Support monitoring table creation and data insertion
+* [MODSOURMAN-460](https://issues.folio.org/browse/MODSOURMAN-460) Implement watchdog timer to monitor table
+
+## 2021-05-28 v3.0.7
+* [MODSOURMAN-480](https://issues.folio.org/browse/MODSOURMAN-480) Create jobs with match profiles that include records with 999 fields cause errors in the srs-instance relationship
+
+## 2021-05-22 v3.0.6
+* [MODSOURMAN-457](https://issues.folio.org/browse/MODSOURMAN-457) Issue with Database migration for Iris release
+* [MODSOURCE-278](https://issues.folio.org/browse/MODSOURCE-278) Move logging of the records creation information to the handler receiving saved records
 * [MODSOURCE-295](https://issues.folio.org/browse/MODSOURCE-295) Set instanceHrid to externalIdsHolder when 999ff$i is present
 
 ## 2021-04-22 v3.0.5

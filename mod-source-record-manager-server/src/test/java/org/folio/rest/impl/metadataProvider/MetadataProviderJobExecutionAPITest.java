@@ -15,6 +15,7 @@ import org.folio.rest.jaxrs.model.JobExecution;
 import org.folio.rest.jaxrs.model.JobExecutionCollection;
 import org.folio.rest.jaxrs.model.JobExecutionLogDto;
 import org.folio.rest.jaxrs.model.JobProfileInfo;
+import org.folio.rest.jaxrs.model.JobProfileInfo.DataType;
 import org.folio.rest.jaxrs.model.JournalRecord.ActionType;
 import org.folio.rest.jaxrs.model.JournalRecord.EntityType;
 import org.folio.rest.jaxrs.model.JournalRecordCollection;
@@ -617,7 +618,7 @@ public class MetadataProviderJobExecutionAPITest extends AbstractRestTest {
       .body(new JobProfileInfo()
         .withName("MARC records")
         .withId(UUID.randomUUID().toString())
-        .withDataType(JobProfileInfo.DataType.MARC))
+        .withDataType(DataType.MARC))
       .when()
       .put(JOB_EXECUTION_PATH + jobExec.getId() + JOB_PROFILE_PATH)
       .then()

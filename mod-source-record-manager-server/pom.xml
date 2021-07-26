@@ -5,7 +5,7 @@
   <parent>
     <groupId>org.folio</groupId>
     <artifactId>mod-source-record-manager</artifactId>
-    <version>3.1.0-SNAPSHOT</version>
+    <version>3.2.0-SNAPSHOT</version>
   </parent>
 
   <properties>
@@ -17,6 +17,7 @@
     <jackson.version>2.10.5.1</jackson.version>
     <jackson.jaxb.version>2.9.9</jackson.jaxb.version>
     <lombok.version>1.18.12</lombok.version>
+    <testcontainers.version>1.15.3</testcontainers.version>
   </properties>
 
   <dependencyManagement>
@@ -40,6 +41,24 @@
 
   <dependencies>
     <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>postgresql</artifactId>
+      <version>${testcontainers.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>${testcontainers.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>kafka</artifactId>
+      <version>${testcontainers.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>io.xlate</groupId>
       <artifactId>staedi</artifactId>
       <version>1.16.0</version>
@@ -60,14 +79,9 @@
       </exclusions>
     </dependency>
     <dependency>
-      <groupId>org.apache.kafka</groupId>
-      <artifactId>kafka-clients</artifactId>
-      <version>2.5.0</version>
-    </dependency>
-    <dependency>
       <groupId>org.folio</groupId>
       <artifactId>mod-source-record-storage-client</artifactId>
-      <version>5.0.0</version>
+      <version>5.2.0-SNAPSHOT</version>
       <type>jar</type>
     </dependency>
     <dependency>
@@ -136,7 +150,7 @@
     <dependency>
       <groupId>org.folio</groupId>
       <artifactId>data-import-utils</artifactId>
-      <version>1.9.0-SNAPSHOT</version>
+      <version>1.9.0</version>
       <type>jar</type>
       <exclusions>
         <exclusion>
@@ -189,24 +203,17 @@
     <dependency>
       <groupId>org.folio</groupId>
       <artifactId>folio-kafka-wrapper</artifactId>
-      <version>2.0.5</version>
+      <version>2.3.1</version>
     </dependency>
-    <!-- TODO: THE VERSION OF LIBRARY MUST BE CHANGED BACK ONCE TESTING ON RANCHER IS COMPLETE-->
     <dependency>
       <groupId>org.folio</groupId>
       <artifactId>mod-data-import-converter-storage-client</artifactId>
-      <scope>system</scope>
-      <version>version_of_lib</version>
-<!--      <version>1.10.0</version>-->
-      <systemPath>lib/</systemPath>
+      <version>1.12.0-SNAPSHOT</version>
     </dependency>
-    <!-- TODO: THE VERSION OF LIBRARY MUST BE CHANGED BACK ONCE TESTING ON RANCHER IS COMPLETE-->
-    <dependency> <groupId>org.folio</groupId>
+    <dependency>
+      <groupId>org.folio</groupId>
       <artifactId>data-import-processing-core</artifactId>
-      <scope>system</scope>
-      <version>version_of_lib</version>
-<!--      <version>3.1.0-SNAPSHOT</version>-->
-      <systemPath>lib/</systemPath>
+      <version>3.2.0-SNAPSHOT</version>
     </dependency>
   </dependencies>
   <build>
@@ -252,6 +259,15 @@
             </configuration>
           </execution>
         </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>versions-maven-plugin</artifactId>
+        <version>2.8.1</version>
+        <configuration>
+          <generateBackupPoms>false</generateBackupPoms>
+        </configuration>
       </plugin>
 
       <plugin>
@@ -458,7 +474,6 @@
                     <Main-Class>org.folio.rest.RestLauncher</Main-Class>
                     <Main-Verticle>org.folio.rest.RestVerticle</Main-Verticle>
                     <Multi-Release>true</Multi-Release>
-                    <Class-Path>lib/data-import-processing-core-fat.jar lib/mod-data-import-converter-storage-client-1.11.0-SNAPSHOT.jar</Class-Path>
                   </manifestEntries>
                 </transformer>
               </transformers>
@@ -494,13 +509,7 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <version>2.22.2</version>
         <configuration>
-          <forkedProcessExitTimeoutInSeconds>120</forkedProcessExitTimeoutInSeconds>
           <useSystemClassLoader>false</useSystemClassLoader>
-          <argLine>
-            --add-opens java.base/jdk.internal.misc=ALL-UNNAMED
-            -Dio.netty.tryReflectionSetAccessible=true
-            --illegal-access=warn
-          </argLine>
         </configuration>
       </plugin>
 
