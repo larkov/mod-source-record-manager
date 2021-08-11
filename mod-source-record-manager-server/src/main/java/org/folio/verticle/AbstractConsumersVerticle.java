@@ -1,17 +1,13 @@
 package org.folio.verticle;
 
 import io.vertx.core.AbstractVerticle;
-import org.folio.okapi.common.GenericCompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
-import org.folio.kafka.AsyncRecordHandler;
-import org.folio.kafka.GlobalLoadSensor;
-import org.folio.kafka.KafkaConfig;
-import org.folio.kafka.KafkaConsumerWrapper;
-import org.folio.kafka.KafkaTopicNameHelper;
-import org.folio.kafka.SubscriptionDefinition;
+import org.folio.kafka.*;
+import org.folio.okapi.common.GenericCompositeFuture;
+import org.folio.processing.events.utils.PomReaderUtil;
+import org.folio.rest.tools.utils.ModuleName;
 import org.folio.spring.SpringContextUtil;
-import org.folio.util.pubsub.PubSubClientUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -59,7 +55,8 @@ public abstract class AbstractConsumersVerticle extends AbstractVerticle {
     List<Future<Void>> futures = new ArrayList<>();
     consumerWrappersList.forEach(consumerWrapper ->
       futures.add(consumerWrapper.start(getHandler(),
-        PubSubClientUtils.constructModuleName() + "_" + getClass().getSimpleName())));
+        PomReaderUtil.INSTANCE.constructModuleVersionAndVersion(ModuleName.getModuleName(),
+          ModuleName.getModuleVersion()) + "_" + getClass().getSimpleName())));
 
     GenericCompositeFuture.all(futures).onComplete(ar -> startPromise.complete());
   }
