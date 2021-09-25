@@ -187,9 +187,12 @@ public class StoredRecordChunksKafkaHandler implements AsyncRecordHandler<String
 
   private Optional<String> getTitleFieldTagByInstanceFieldPath(JsonObject mappingRules) {
     return mappingRules.getMap().keySet().stream()
-      .filter(fieldTag -> mappingRules.getJsonArray(fieldTag).stream()
-        .map(o -> (JsonObject) o)
-        .anyMatch(fieldMappingRule -> INSTANCE_TITLE_FIELD_PATH.equals(fieldMappingRule.getString("target"))))
+      .filter(fieldTag -> {
+        LOGGER.info("Rule field tag: '{}'", fieldTag);
+        return mappingRules.getJsonArray(fieldTag).stream()
+          .map(o -> (JsonObject) o)
+          .anyMatch(fieldMappingRule -> INSTANCE_TITLE_FIELD_PATH.equals(fieldMappingRule.getString("target")));
+      })
       .findFirst();
   }
 
