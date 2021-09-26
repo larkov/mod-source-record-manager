@@ -57,21 +57,30 @@ public class EventDrivenChunkProcessingServiceImpl extends AbstractChunkProcessi
 
   private Future<Boolean> saveMappingMetaDataSnapshot(String jobExecutionId, OkapiConnectionParams okapiParams, List<Record> recordsList) {
     if (CollectionUtils.isEmpty(recordsList)) {
+      LOGGER.info("Records list is empty, skipping to save mappingMetadata snapshot for job '{}'", jobExecutionId);
       return Future.succeededFuture(false);
     }
     Promise<Boolean> promise = Promise.promise();
     mappingMetadataService.getMappingMetadataDto(jobExecutionId, okapiParams)
-      .onSuccess(v -> promise.complete(false))
+      .onSuccess(v -> {
+        LOGGER.info("mappingMetadata snapshot already exists for job '{}'", jobExecutionId);
+        promise.complete(false);
+      })
       .onFailure(e -> {
         if (e instanceof NotFoundException) {
+          LOGGER.info("Starting to save mappingMetadata snapshot for job '{}'", jobExecutionId);
           Record.RecordType recordType = recordsList.get(0).getRecordType();
           recordType = recordType == Record.RecordType.MARC_HOLDING ? recordType : Record.RecordType.MARC_BIB;
           mappingMetadataService.saveMappingRulesSnapshot(jobExecutionId, recordType.toString(), okapiParams.getTenantId())
             .compose(arMappingRules -> mappingMetadataService.saveMappingParametersSnapshot(jobExecutionId, okapiParams))
-            .onSuccess(ar -> promise.complete(true))
+            .onSuccess(ar -> {
+              LOGGER.info("mappingMetadata snapshot created for job '{}'", jobExecutionId);
+              promise.complete(true);
+            })
             .onFailure(promise::fail);
           return;
         }
+        LOGGER.info("Error occurred while creating mappingMetadata snapshot for job '{}'", jobExecutionId);
         promise.fail(e);
       });
     return promise.future();
