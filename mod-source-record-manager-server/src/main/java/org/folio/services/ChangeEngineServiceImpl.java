@@ -99,6 +99,7 @@ public class ChangeEngineServiceImpl implements ChangeEngineService {
   private RecordAnalyzer marcRecordAnalyzer;
   private HrIdFieldService hrIdFieldService;
   private RecordsPublishingService recordsPublishingService;
+  private MappingMetadataService mappingMetadataService;
   private KafkaConfig kafkaConfig;
 
   @Value("${srm.kafka.RawChunksKafkaHandler.maxDistributionNum:100}")
@@ -112,12 +113,14 @@ public class ChangeEngineServiceImpl implements ChangeEngineService {
                                  @Autowired MarcRecordAnalyzer marcRecordAnalyzer,
                                  @Autowired HrIdFieldService hrIdFieldService,
                                  @Autowired RecordsPublishingService recordsPublishingService,
+                                 @Autowired MappingMetadataService mappingMetadataService,
                                  @Autowired KafkaConfig kafkaConfig) {
     this.jobExecutionSourceChunkDao = jobExecutionSourceChunkDao;
     this.jobExecutionService = jobExecutionService;
     this.marcRecordAnalyzer = marcRecordAnalyzer;
     this.hrIdFieldService = hrIdFieldService;
     this.recordsPublishingService = recordsPublishingService;
+    this.mappingMetadataService = mappingMetadataService;
     this.kafkaConfig = kafkaConfig;
   }
 
@@ -128,7 +131,13 @@ public class ChangeEngineServiceImpl implements ChangeEngineService {
     Future<List<Record>> futureParsedRecords =
       parseRecords(chunk.getInitialRecords(), chunk.getRecordsMetadata().getContentType(), jobExecution, sourceChunkId,
         params.getTenantId(), params);
-    futureParsedRecords.onSuccess(parsedRecords-> {
+    futureParsedRecords
+      .onSuccess(parsedRecords -> {
+        LOGGER.info("Invoking saveMappingMetaDataSnapshot()");
+        saveMappingMetaDataSnapshot(jobExecution.getId(), params, parsedRecords);
+      })
+      .onSuccess(parsedRecords -> {
+      LOGGER.info("Invoking fillParsedRecordsWithAdditionalFields()");
       fillParsedRecordsWithAdditionalFields(parsedRecords);
       boolean updateMarcActionExists = containsUpdateMarcActionProfile(jobExecution.getJobProfileSnapshotWrapper());
 
@@ -168,6 +177,37 @@ public class ChangeEngineServiceImpl implements ChangeEngineService {
     }).onFailure(th -> {
       LOGGER.error("Error parsing records: {}", th.getMessage());
     });
+    return promise.future();
+  }
+
+  private Future<Boolean> saveMappingMetaDataSnapshot(String jobExecutionId, OkapiConnectionParams okapiParams, List<Record> recordsList) {
+    if (CollectionUtils.isEmpty(recordsList)) {
+      LOGGER.info("Records list is empty, skipping to save mappingMetadata snapshot for job '{}'", jobExecutionId);
+      return Future.succeededFuture(false);
+    }
+    Promise<Boolean> promise = Promise.promise();
+    mappingMetadataService.getMappingMetadataDto(jobExecutionId, okapiParams)
+      .onSuccess(v -> {
+        LOGGER.info("mappingMetadata snapshot already exists for job '{}'", jobExecutionId);
+        promise.complete(false);
+      })
+      .onFailure(e -> {
+        if (e instanceof NotFoundException) {
+          LOGGER.info("Starting to save mappingMetadata snapshot for job '{}'", jobExecutionId);
+          Record.RecordType recordType = recordsList.get(0).getRecordType();
+          recordType = recordType == Record.RecordType.MARC_HOLDING ? recordType : Record.RecordType.MARC_BIB;
+          mappingMetadataService.saveMappingRulesSnapshot(jobExecutionId, recordType.toString(), okapiParams.getTenantId())
+            .compose(arMappingRules -> mappingMetadataService.saveMappingParametersSnapshot(jobExecutionId, okapiParams))
+            .onSuccess(ar -> {
+              LOGGER.info("mappingMetadata snapshot created for job '{}'", jobExecutionId);
+              promise.complete(true);
+            })
+            .onFailure(promise::fail);
+          return;
+        }
+        LOGGER.info("Error occurred while creating mappingMetadata snapshot for job '{}'", jobExecutionId);
+        promise.fail(e);
+      });
     return promise.future();
   }
 

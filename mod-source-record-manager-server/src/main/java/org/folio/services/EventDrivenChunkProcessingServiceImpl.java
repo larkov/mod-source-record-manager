@@ -49,31 +49,8 @@ public class EventDrivenChunkProcessingServiceImpl extends AbstractChunkProcessi
     initializeJobExecutionProgressIfNecessary(jobExecutionId, incomingChunk, params.getTenantId())
       .compose(ar -> checkAndUpdateJobExecutionStatusIfNecessary(jobExecutionId, new StatusDto().withStatus(StatusDto.Status.PARSING_IN_PROGRESS), params))
       .compose(jobExec -> changeEngineService.parseRawRecordsChunkForJobExecution(incomingChunk, jobExec, sourceChunk.getId(), params))
-      .compose(records -> saveMappingMetaDataSnapshot(jobExecutionId, params, records))
       .onComplete(sendEventsAr -> updateJobExecutionIfAllSourceChunksMarkedAsError(jobExecutionId, params)
         .onComplete(updateAr -> promise.handle(sendEventsAr.map(true))));
-    return promise.future();
-  }
-
-  private Future<Boolean> saveMappingMetaDataSnapshot(String jobExecutionId, OkapiConnectionParams okapiParams, List<Record> recordsList) {
-    if (CollectionUtils.isEmpty(recordsList)) {
-      return Future.succeededFuture(false);
-    }
-    Promise<Boolean> promise = Promise.promise();
-    mappingMetadataService.getMappingMetadataDto(jobExecutionId, okapiParams)
-      .onSuccess(v -> promise.complete(false))
-      .onFailure(e -> {
-        if (e instanceof NotFoundException) {
-          Record.RecordType recordType = recordsList.get(0).getRecordType();
-          recordType = recordType == Record.RecordType.MARC_HOLDING ? recordType : Record.RecordType.MARC_BIB;
-          mappingMetadataService.saveMappingRulesSnapshot(jobExecutionId, recordType.toString(), okapiParams.getTenantId())
-            .compose(arMappingRules -> mappingMetadataService.saveMappingParametersSnapshot(jobExecutionId, okapiParams))
-            .onSuccess(ar -> promise.complete(true))
-            .onFailure(promise::fail);
-          return;
-        }
-        promise.fail(e);
-      });
     return promise.future();
   }
 

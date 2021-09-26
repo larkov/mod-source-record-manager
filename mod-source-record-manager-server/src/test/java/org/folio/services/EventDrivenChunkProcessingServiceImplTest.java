@@ -187,7 +187,7 @@ public class EventDrivenChunkProcessingServiceImplTest extends AbstractRestTest 
     mappingRuleService = new MappingRuleServiceImpl(mappingRuleDao, mappingRuleCache);
     mappingParametersProvider = when(mock(MappingParametersProvider.class).get(anyString(), any(OkapiConnectionParams.class))).thenReturn(Future.succeededFuture(new MappingParameters())).getMock();
 
-    changeEngineService = new ChangeEngineServiceImpl(jobExecutionSourceChunkDao, jobExecutionService, marcRecordAnalyzer, hrIdFieldService, recordsPublishingService, kafkaConfig);
+    changeEngineService = new ChangeEngineServiceImpl(jobExecutionSourceChunkDao, jobExecutionService, marcRecordAnalyzer, hrIdFieldService, recordsPublishingService, mappingMetadataService, kafkaConfig);
     ReflectionTestUtils.setField(changeEngineService, "maxDistributionNum", 10);
     ReflectionTestUtils.setField(changeEngineService, "batchSize", 100);
     mappingMetadataService = new MappingMetadataServiceImpl(mappingParametersProvider, mappingRuleService, mappingRulesSnapshotDao, mappingParamsSnapshotDao);
