@@ -29,17 +29,14 @@ public class EventDrivenChunkProcessingServiceImpl extends AbstractChunkProcessi
   private static final Logger LOGGER = LogManager.getLogger();
   private ChangeEngineService changeEngineService;
   private JobExecutionProgressService jobExecutionProgressService;
-  private MappingMetadataService mappingMetadataService;
 
   public EventDrivenChunkProcessingServiceImpl(@Autowired JobExecutionSourceChunkDao jobExecutionSourceChunkDao,
                                                @Autowired JobExecutionService jobExecutionService,
                                                @Autowired ChangeEngineService changeEngineService,
-                                               @Autowired JobExecutionProgressService jobExecutionProgressService,
-                                               @Autowired MappingMetadataService mappingMetadataService) {
+                                               @Autowired JobExecutionProgressService jobExecutionProgressService) {
     super(jobExecutionSourceChunkDao, jobExecutionService);
     this.changeEngineService = changeEngineService;
     this.jobExecutionProgressService = jobExecutionProgressService;
-    this.mappingMetadataService = mappingMetadataService;
   }
 
   @Override
@@ -49,40 +46,8 @@ public class EventDrivenChunkProcessingServiceImpl extends AbstractChunkProcessi
     initializeJobExecutionProgressIfNecessary(jobExecutionId, incomingChunk, params.getTenantId())
       .compose(ar -> checkAndUpdateJobExecutionStatusIfNecessary(jobExecutionId, new StatusDto().withStatus(StatusDto.Status.PARSING_IN_PROGRESS), params))
       .compose(jobExec -> changeEngineService.parseRawRecordsChunkForJobExecution(incomingChunk, jobExec, sourceChunk.getId(), params))
-      .compose(records -> saveMappingMetaDataSnapshot(jobExecutionId, params, records))
       .onComplete(sendEventsAr -> updateJobExecutionIfAllSourceChunksMarkedAsError(jobExecutionId, params)
         .onComplete(updateAr -> promise.handle(sendEventsAr.map(true))));
-    return promise.future();
-  }
-
-  private Future<Boolean> saveMappingMetaDataSnapshot(String jobExecutionId, OkapiConnectionParams okapiParams, List<Record> recordsList) {
-    if (CollectionUtils.isEmpty(recordsList)) {
-      LOGGER.info("Records list is empty, skipping to save mappingMetadata snapshot for job '{}'", jobExecutionId);
-      return Future.succeededFuture(false);
-    }
-    Promise<Boolean> promise = Promise.promise();
-    mappingMetadataService.getMappingMetadataDto(jobExecutionId, okapiParams)
-      .onSuccess(v -> {
-        LOGGER.info("mappingMetadata snapshot already exists for job '{}'", jobExecutionId);
-        promise.complete(false);
-      })
-      .onFailure(e -> {
-        if (e instanceof NotFoundException) {
-          LOGGER.info("Starting to save mappingMetadata snapshot for job '{}'", jobExecutionId);
-          Record.RecordType recordType = recordsList.get(0).getRecordType();
-          recordType = recordType == Record.RecordType.MARC_HOLDING ? recordType : Record.RecordType.MARC_BIB;
-          mappingMetadataService.saveMappingRulesSnapshot(jobExecutionId, recordType.toString(), okapiParams.getTenantId())
-            .compose(arMappingRules -> mappingMetadataService.saveMappingParametersSnapshot(jobExecutionId, okapiParams))
-            .onSuccess(ar -> {
-              LOGGER.info("mappingMetadata snapshot created for job '{}'", jobExecutionId);
-              promise.complete(true);
-            })
-            .onFailure(promise::fail);
-          return;
-        }
-        LOGGER.info("Error occurred while creating mappingMetadata snapshot for job '{}'", jobExecutionId);
-        promise.fail(e);
-      });
     return promise.future();
   }
 
