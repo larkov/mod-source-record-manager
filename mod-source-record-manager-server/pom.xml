@@ -438,6 +438,7 @@
                     <Main-Class>org.folio.rest.RestLauncher</Main-Class>
                     <Main-Verticle>org.folio.rest.RestVerticle</Main-Verticle>
                     <Multi-Release>true</Multi-Release>
+                    <Class-Path>lib/mod-source-record-storage-client-5.3.0-SNAPSHOT.jar</Class-Path>
                   </manifestEntries>
                 </transformer>
               </transformers>
