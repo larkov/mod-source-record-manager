@@ -95,3 +95,28 @@ ALTER TABLE IF EXISTS job_execution_progress DROP CONSTRAINT IF EXISTS jobexecut
 ALTER TABLE IF EXISTS journal_records DROP CONSTRAINT IF EXISTS journal_records_job_execution_id_fkey;
 ALTER TABLE IF EXISTS job_monitoring DROP CONSTRAINT IF EXISTS job_monitoring_job_execution_id_fkey;
 
+
+
+-- migrate data from "job_executions" to "job_execution"
+INSERT INTO job_execution
+SELECT id,
+       jsonb -> 'hrid',
+       (jsonb ->> 'parentJobId')::uuid,
+       (jsonb ->> 'subordinationType')::job_execution_subordination_type,
+       jsonb ->> 'sourcePath',
+       jsonb ->> 'fileName',
+       (jsonb -> 'progress' ->> 'current')::integer,
+       (jsonb -> 'progress' ->> 'total')::integer,
+       (jsonb ->> 'startedDate')::timestamptz,
+       (jsonb ->> 'completedDate')::timestamptz,
+       (jsonb ->> 'status')::job_execution_status,
+       (jsonb ->> 'uiStatus')::job_execution_ui_status,
+       (jsonb ->> 'errorStatus')::job_execution_error_status,
+       jsonb -> 'runBy' ->> 'firstName',
+       jsonb -> 'runBy' ->> 'lastName',
+       (jsonb -> 'userId')::uuid,
+       (jsonb -> 'jobProfileInfo' ->> 'id')::uuid AS job_profile_id,
+       jsonb -> 'jobProfileInfo' ->> 'name' AS job_profile_name,
+       jsonb -> 'jobProfileInfo' ->> 'dataType' AS job_profile_data_type,
+       jsonb -> 'jobProfileSnapshotWrapper' AS job_profile_snapshot_wrapper
+FROM ${myuniversity}_${mymodule}.job_executions
