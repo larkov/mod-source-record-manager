@@ -3,6 +3,8 @@ package org.folio.verticle;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.folio.kafka.*;
 import org.folio.okapi.common.GenericCompositeFuture;
 import org.folio.spring.SpringContextUtil;
@@ -17,6 +19,8 @@ import java.util.List;
 import static org.folio.services.util.EventHandlingUtil.constructModuleName;
 
 public abstract class AbstractConsumersVerticle extends AbstractVerticle {
+
+  private static final Logger LOGGER = LogManager.getLogger();
 
   //TODO: get rid of this workaround with global spring context
   private static AbstractApplicationContext springGlobalContext;
@@ -34,6 +38,7 @@ public abstract class AbstractConsumersVerticle extends AbstractVerticle {
 
   @Override
   public void start(Promise<Void> startPromise) {
+    LOGGER.info("AbstractConsumersVerticle::Starting own branch");
     context.put("springContext", springGlobalContext);
 
     SpringContextUtil.autowireDependencies(this, context);

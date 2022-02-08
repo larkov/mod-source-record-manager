@@ -46,6 +46,7 @@ public class RawMarcChunksKafkaHandler implements AsyncRecordHandler<String, Str
     String jobExecutionId = okapiConnectionParams.getHeaders().get("jobExecutionId");
 
     Event event = Json.decodeValue(record.value(), Event.class);
+    LOGGER.info("RawMarcChunksKafkaHandler::Starting own branch");
     LOGGER.debug("Starting to handle of raw mark chunks from Kafka for event type: {}", event.getEventType());
     try {
       RawRecordsDto rawRecordsDto = new JsonObject(event.getEventPayload()).mapTo(RawRecordsDto.class);
