@@ -38,7 +38,7 @@ public abstract class AbstractConsumersVerticle extends AbstractVerticle {
 
   @Override
   public void start(Promise<Void> startPromise) {
-    LOGGER.info("AbstractConsumersVerticle::Starting own branch");
+    LOGGER.info("AbstractConsumersVerticle::Starting own branch2");
     context.put("springContext", springGlobalContext);
 
     SpringContextUtil.autowireDependencies(this, context);
