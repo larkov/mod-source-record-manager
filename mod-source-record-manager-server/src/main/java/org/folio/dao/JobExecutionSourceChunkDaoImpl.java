@@ -82,9 +82,10 @@ public class JobExecutionSourceChunkDaoImpl implements JobExecutionSourceChunkDa
         LOGGER.warn("Can't retrieve JobExecutionSourceChunk by empty id.");
         return promise.future().map(Optional.empty());
       }
-      Criteria idCrit = constructCriteria(ID_FIELD, id);
+      String[] fieldList = {"*"};
+      CQLWrapper cql = getCQLWrapper(TABLE_NAME, "id = " + id, 0, 1);
       pgClientFactory.createInstance(tenantId)
-        .get(TABLE_NAME, JobExecutionSourceChunk.class, new Criterion(idCrit), true, false, promise);
+        .get(TABLE_NAME, JobExecutionSourceChunk.class, fieldList, cql, true, false, promise);
     } catch (Exception e) {
       LOGGER.error("Error querying JobExecutionSourceChunk by id {}", id, e);
       promise.fail(e);
