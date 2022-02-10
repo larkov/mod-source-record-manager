@@ -2,6 +2,8 @@ package org.folio.services.journal;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.vertx.core.json.JsonObject;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.folio.DataImportEventPayload;
 import org.folio.rest.jaxrs.model.DataImportEventTypes;
 import org.folio.rest.jaxrs.model.JournalRecord;
@@ -26,6 +28,8 @@ import static org.folio.rest.jaxrs.model.JournalRecord.EntityType.MARC_HOLDINGS;
  * Journal util class for building specific 'JournalRecord'-objects, based on parameters.
  */
 public class JournalUtil {
+
+  public static final Logger LOGGER = LogManager.getLogger();
 
   public static final String ERROR_KEY = "ERROR";
   private static final String EVENT_HAS_NO_DATA_MSG = "Failed to handle %s event, because event payload context does not contain %s and/or %s data";
@@ -60,11 +64,20 @@ public class JournalUtil {
   public static JournalRecord buildJournalRecord(DataImportEventPayload eventPayload, JournalRecord.ActionType actionType, JournalRecord.EntityType entityType,
                                                  JournalRecord.ActionStatus actionStatus) throws JournalRecordMapperException {
     try {
+      LOGGER.debug("JournalUtil.buildJournalRecord: eventPayload = {}", eventPayload);
+      LOGGER.debug("JournalUtil.buildJournalRecord: actionType = {}", actionType);
+      LOGGER.debug("JournalUtil.buildJournalRecord: entityType = {}", entityType);
+      LOGGER.debug("JournalUtil.buildJournalRecord: actionStatus = {}", actionStatus);
+
       HashMap<String, String> eventPayloadContext = eventPayload.getContext();
 
       String recordAsString = extractRecord(eventPayloadContext);
       Record record = new ObjectMapper().readValue(recordAsString, Record.class);
       String entityAsString = eventPayloadContext.get(entityType.value());
+
+      LOGGER.debug("JournalUtil.buildJournalRecord: recordAsString = {}", recordAsString);
+      LOGGER.debug("JournalUtil.buildJournalRecord: record = {}", record);
+      LOGGER.debug("JournalUtil.buildJournalRecord: entityAsString = {}", entityAsString);
 
       JournalRecord journalRecord = new JournalRecord()
         .withJobExecutionId(record.getSnapshotId())
