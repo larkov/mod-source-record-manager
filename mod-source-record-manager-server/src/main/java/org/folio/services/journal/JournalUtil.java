@@ -64,20 +64,18 @@ public class JournalUtil {
   public static JournalRecord buildJournalRecord(DataImportEventPayload eventPayload, JournalRecord.ActionType actionType, JournalRecord.EntityType entityType,
                                                  JournalRecord.ActionStatus actionStatus) throws JournalRecordMapperException {
     try {
-      LOGGER.debug("JournalUtil.buildJournalRecord: eventPayload = {}", eventPayload);
-      LOGGER.debug("JournalUtil.buildJournalRecord: actionType = {}", actionType);
-      LOGGER.debug("JournalUtil.buildJournalRecord: entityType = {}", entityType);
-      LOGGER.debug("JournalUtil.buildJournalRecord: actionStatus = {}", actionStatus);
-
       HashMap<String, String> eventPayloadContext = eventPayload.getContext();
 
       String recordAsString = extractRecord(eventPayloadContext);
       Record record = new ObjectMapper().readValue(recordAsString, Record.class);
       String entityAsString = eventPayloadContext.get(entityType.value());
 
-      LOGGER.debug("JournalUtil.buildJournalRecord: recordAsString = {}", recordAsString);
-      LOGGER.debug("JournalUtil.buildJournalRecord: record = {}", record);
-      LOGGER.debug("JournalUtil.buildJournalRecord: entityAsString = {}", entityAsString);
+      StringBuilder logMsg = new StringBuilder(String.format("recordId = {}, actionType = {}, entityType = {}, actionStatus = {}",
+        record.getId(), actionType, entityType, actionStatus));
+      if (actionStatus == JournalRecord.ActionStatus.ERROR) {
+        logMsg.append("ERROR message: ").append(eventPayloadContext.get(ERROR_KEY));
+      }
+      LOGGER.debug("JournalUtil.buildJournalRecord: {}", logMsg);
 
       JournalRecord journalRecord = new JournalRecord()
         .withJobExecutionId(record.getSnapshotId())
@@ -88,12 +86,18 @@ public class JournalUtil {
         .withActionDate(new Date())
         .withActionStatus(actionStatus);
 
-      if (!isEmpty(entityAsString)) {
-        JsonObject entityJson = new JsonObject(entityAsString);
-        journalRecord.setEntityId(entityJson.getString("id"));
+      LOGGER.debug("JournalUtil.buildJournalRecord: {}", 1);
 
+      if (!isEmpty(entityAsString)) {
+        LOGGER.debug("JournalUtil.buildJournalRecord: {}", 2);
+        JsonObject entityJson = new JsonObject(entityAsString);
+        LOGGER.debug("JournalUtil.buildJournalRecord: {}", 3);
+        journalRecord.setEntityId(entityJson.getString("id"));
+        LOGGER.debug("JournalUtil.buildJournalRecord: {}", 4);
         if (entityType == INSTANCE || entityType == HOLDINGS || entityType == ITEM) {
+          LOGGER.debug("JournalUtil.buildJournalRecord: {}", 9);
           if (entityType == HOLDINGS) {
+            LOGGER.debug("JournalUtil.buildJournalRecord: {}", 5);
             journalRecord.setInstanceId(entityJson.getString("instanceId"));
           }
           if (entityType == ITEM) {
@@ -106,14 +110,18 @@ public class JournalUtil {
             }
             journalRecord.setHoldingsId(entityJson.getString("holdingsRecordId"));
           }
+          LOGGER.debug("JournalUtil.buildJournalRecord: {}", 6);
           journalRecord.setEntityHrId(entityJson.getString("hrid"));
         }
       }
 
+      LOGGER.debug("JournalUtil.buildJournalRecord: {}", 7);
       if (DI_ERROR == DataImportEventTypes.fromValue(eventPayload.getEventType())) {
+        LOGGER.debug("JournalUtil.buildJournalRecord: {}", 8);
         journalRecord.setError(eventPayloadContext.get(ERROR_KEY));
       }
 
+      LOGGER.debug("JournalUtil.buildJournalRecord: {}", 9);
       return journalRecord;
     } catch (Exception e) {
       throw new JournalRecordMapperException(String.format(ENTITY_OR_RECORD_MAPPING_EXCEPTION_MSG, entityType.value()), e);
