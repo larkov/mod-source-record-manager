@@ -65,17 +65,18 @@ public class JournalUtil {
                                                  JournalRecord.ActionStatus actionStatus) throws JournalRecordMapperException {
     try {
       HashMap<String, String> eventPayloadContext = eventPayload.getContext();
+      LOGGER.debug("buildJournalRecord: eventPayloadContext.size = {}, actionType = {}, entityType = {}, actionStatus = {}",
+        eventPayloadContext.size(), actionType, entityType, actionStatus);
 
       String recordAsString = extractRecord(eventPayloadContext);
+      LOGGER.debug("buildJournalRecord: recordAsString.length = {}", recordAsString.length());
+
       Record record = new ObjectMapper().readValue(recordAsString, Record.class);
       String entityAsString = eventPayloadContext.get(entityType.value());
 
-      StringBuilder logMsg = new StringBuilder(String.format("recordId = {}, actionType = {}, entityType = {}, actionStatus = {}",
-        record.getId(), actionType, entityType, actionStatus));
       if (actionStatus == JournalRecord.ActionStatus.ERROR) {
-        logMsg.append("ERROR message: ").append(eventPayloadContext.get(ERROR_KEY));
+        LOGGER.debug("buildJournalRecord: ERROR message: {} for actionStatus ERROR", eventPayloadContext.get(ERROR_KEY));
       }
-      LOGGER.debug("JournalUtil.buildJournalRecord: {}", logMsg);
 
       JournalRecord journalRecord = new JournalRecord()
         .withJobExecutionId(record.getSnapshotId())
